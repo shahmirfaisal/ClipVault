@@ -29,16 +29,24 @@ final class PanelController: NSObject, ObservableObject, NSWindowDelegate {
 
     @Published var selectedIndex = 0
     @Published var query = ""
+    @Published var showPinnedOnly = false
 
     let monitor = ClipboardMonitor.shared
     private let panel = PastePanel()
     private var keyMonitor: Any?
-    private let panelHeight: CGFloat = 300
+    private let panelHeight: CGFloat = 310
 
     var filteredItems: [ClipItem] {
+        var list = monitor.items
+        if showPinnedOnly { list = list.filter(\.isPinned) }
         let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return monitor.items }
-        return monitor.items.filter { $0.text.localizedCaseInsensitiveContains(q) }
+        guard !q.isEmpty else { return list }
+        return list.filter { $0.searchableText.localizedCaseInsensitiveContains(q) }
+    }
+
+    var selectedItem: ClipItem? {
+        let items = filteredItems
+        return items.indices.contains(selectedIndex) ? items[selectedIndex] : nil
     }
 
     private override init() {
@@ -47,6 +55,7 @@ final class PanelController: NSObject, ObservableObject, NSWindowDelegate {
         let root = HistoryView()
             .environmentObject(self)
             .environmentObject(monitor)
+            .environmentObject(AppSettings.shared)
         panel.contentView = NSHostingView(rootView: root)
     }
 
@@ -107,10 +116,34 @@ final class PanelController: NSObject, ObservableObject, NSWindowDelegate {
         }
     }
 
-    func pasteSelected() {
-        let items = filteredItems
-        guard items.indices.contains(selectedIndex) else { return }
-        paste(items[selectedIndex])
+    /// Copies without pasting.
+    func copyOnly(_ item: ClipItem) {
+        monitor.copy(item)
+        hide()
+    }
+
+    func togglePin(_ item: ClipItem) {
+        monitor.togglePin(item)
+        clampSelection()
+    }
+
+    func delete(_ item: ClipItem) {
+        monitor.delete(item)
+        clampSelection()
+    }
+
+    func togglePinnedFilter() {
+        showPinnedOnly.toggle()
+        selectedIndex = 0
+    }
+
+    func openSettings() {
+        hide()
+        SettingsWindowController.shared.show()
+    }
+
+    private func clampSelection() {
+        selectedIndex = min(selectedIndex, max(filteredItems.count - 1, 0))
     }
 
     private static func sendCommandV() {
@@ -129,7 +162,7 @@ final class PanelController: NSObject, ObservableObject, NSWindowDelegate {
     private func startKeyMonitor() {
         stopKeyMonitor()
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let self else { return event }
+            guard let self, event.window === self.panel else { return event }
             return self.handle(event) ? nil : event
         }
     }
@@ -142,12 +175,14 @@ final class PanelController: NSObject, ObservableObject, NSWindowDelegate {
     /// Returns true if the key was handled here.
     private func handle(_ event: NSEvent) -> Bool {
         let count = filteredItems.count
+        let command = event.modifierFlags.contains(.command)
+
         switch Int(event.keyCode) {
         case 53: // Esc
             if !query.isEmpty { query = ""; selectedIndex = 0 } else { hide() }
             return true
         case 36, 76: // Return / Enter
-            pasteSelected()
+            if let item = selectedItem { paste(item) }
             return true
         case 123: // ←
             selectedIndex = max(0, selectedIndex - 1)
@@ -155,16 +190,26 @@ final class PanelController: NSObject, ObservableObject, NSWindowDelegate {
         case 124: // →
             selectedIndex = min(max(count - 1, 0), selectedIndex + 1)
             return true
+        case 48: // Tab — switch between All and Pinned
+            togglePinnedFilter()
+            return true
+        case 51 where command: // ⌘⌫ — delete
+            if let item = selectedItem { delete(item) }
+            return true
         default:
             break
         }
 
-        // ⌘1…⌘9 pastes that card directly
-        if event.modifierFlags.contains(.command),
-           let chars = event.charactersIgnoringModifiers, let n = Int(chars), (1...9).contains(n) {
-            let items = filteredItems
-            if items.indices.contains(n - 1) { paste(items[n - 1]) }
-            return true
+        if command, let chars = event.charactersIgnoringModifiers?.lowercased() {
+            if chars == "p", let item = selectedItem { togglePin(item); return true }
+            if chars == "c", let item = selectedItem { copyOnly(item); return true }
+            if chars == "," { openSettings(); return true }
+            // ⌘1…⌘9 pastes that card directly
+            if let n = Int(chars), (1...9).contains(n) {
+                let items = filteredItems
+                if items.indices.contains(n - 1) { paste(items[n - 1]) }
+                return true
+            }
         }
         return false // let typing go to the search field
     }
@@ -179,5 +224,11 @@ enum Accessibility {
     static func isTrusted(prompt: Bool) -> Bool {
         let key = "AXTrustedCheckOptionPrompt" as CFString
         return AXIsProcessTrustedWithOptions([key: prompt] as CFDictionary)
+    }
+
+    static func openSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
