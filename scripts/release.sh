@@ -27,6 +27,7 @@ ditto "${APP}" "dist/staging/${APP_NAME}.app"
 ln -s /Applications "dist/staging/Applications"
 hdiutil create -volname "${APP_NAME}" -srcfolder dist/staging -ov -format UDZO "${DMG}" > /dev/null
 rm -rf dist/staging
-codesign --sign "${SIGN_ID}" "${DMG}"
+# The DMG is intentionally left unsigned: a self-signed DMG triggers an extra
+# Gatekeeper warning when opened. The app inside is still signed.
 
 echo "✓ Done: ${DMG} ($(du -h "${DMG}" | cut -f1))"

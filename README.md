@@ -32,8 +32,19 @@ Requires **macOS 14.6 or later** (Apple Silicon or Intel).
 
 1. Download the latest `ClipVault-x.x.dmg` from [Releases](../../releases).
 2. Open it and drag **ClipVault** into **Applications**.
-3. Open ClipVault. macOS will say it can't verify the developer — this is expected, because ClipVault isn't distributed through Apple's paid developer program. Click **Done**.
+3. Open ClipVault. macOS will say *"Apple could not verify ClipVault is free of malware"* — this is expected, because ClipVault isn't distributed through Apple's paid developer program. Click **Done**.
 4. Go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to the ClipVault message. Confirm with your password. You only do this once.
+
+   If you see the same message when opening the `.dmg`, use **Open Anyway** for it in the same way.
+
+   <details><summary>Prefer Terminal?</summary>
+
+   After dragging ClipVault into Applications, this removes the download flag so it opens normally:
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/ClipVault.app
+   ```
+   </details>
 5. When asked, allow **Accessibility** for ClipVault (**System Settings → Privacy & Security → Accessibility**). This is what lets ClipVault paste for you. Without it, choosing an item only copies it.
 
 The clipboard icon appears in your menu bar — press **⇧⌘V** to start.
@@ -61,6 +72,10 @@ Then press ⌘R. To build a signed DMG, create a code-signing certificate named 
 ```bash
 ./scripts/release.sh
 ```
+
+## Related
+
+[DropShelf](https://github.com/shahmirfaisal/DropShelf) — a free drag-and-drop shelf for macOS: shake while dragging to park files, then drop them anywhere.
 
 ## License
 
