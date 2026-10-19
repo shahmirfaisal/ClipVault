@@ -75,7 +75,8 @@ Then press ⌘R. To build a signed DMG, create a code-signing certificate named 
 
 ## Related
 
-[DropShelf](https://github.com/shahmirfaisal/DropShelf) — a free drag-and-drop shelf for macOS: shake while dragging to park files, then drop them anywhere.
+- [DropShelf](https://github.com/shahmirfaisal/DropShelf) — a free drag-and-drop shelf for macOS: shake while dragging to park files, then drop them anywhere.
+- [PinShot](https://github.com/shahmirfaisal/PinShot) — floating screenshots: capture part of the screen and keep it pinned on top, with text recognition
 
 ## License
 
